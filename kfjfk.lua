@@ -579,7 +579,6 @@ MovementTab:CreateButton({
 	end,
 })
 
-
 -- Необходимые переменные (должны быть определены в основном скрипте)
 local rs = game:GetService("ReplicatedStorage")
 local packets = require(rs.Modules.Packets)
@@ -1096,7 +1095,11 @@ local function applyTargetHubLayout()
     local showViewport = targetHubViewportEnabled and (not targetHubMinimized)
     if showViewport then
         targetHubFrame.Size = UDim2.fromOffset(240, 140)
-        if targetHubViewport then targetHubViewport.Position = UDim2.fromOffset(10, 98) targetHubViewport.Size = UDim2.new(1, -20, 1, -108) end
+        if targetHubViewport then
+            targetHubViewport.Position = UDim2.fromOffset(10, 98)
+            targetHubViewport.Size = UDim2.new(1, -20, 1, -108)
+            targetHubViewport.Visible = true
+        end
     else
         targetHubFrame.Size = UDim2.fromOffset(240, 64)
         if targetHubViewport then targetHubViewport.Visible = false end
