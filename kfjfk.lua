@@ -35,12 +35,12 @@ local Window = Rayfield:CreateWindow({
       Key = {"Hello"} -- List of keys that will be accepted by the system, can be RAW file links (pastebin, github etc) or simple strings ("hello","key22")
    }
 })
---// Services
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
---// CONFIG
+
 local ESP = {
 	Enabled = false,
 
@@ -57,14 +57,14 @@ local ESP = {
 	SmoothAlpha = 0.35, -- 0..1
 }
 
---// UI Root
+
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "ESP2D_UI"
 screenGui.ResetOnSpawn = false
 screenGui.IgnoreGuiInset = true
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
---// Helpers
+
 local function w2s(pos)
 	local v, on = Camera:WorldToViewportPoint(pos)
 	return Vector2.new(v.X, v.Y), on, v.Z
@@ -139,9 +139,7 @@ local function getRigPairs(char)
 	end
 end
 
---========================================================
---// FIX: стабильный бокс (не раздувается от удара/анимаций)
---========================================================
+
 local function getCoreParts(char)
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
 	local rig = hum and hum.RigType or Enum.HumanoidRigType.R15
@@ -200,7 +198,7 @@ local function getStable2DBox(char, pad)
 	return (minX - pad), (minY - pad), (maxX + pad), (maxY + pad)
 end
 
---// Per-player UI
+
 local ui = {} -- [Player] = {Holder, BoxFrame, BoxStroke, DistLabel, Lines[1..20], Smooth={x1,y1,x2,y2}}
 
 local function ensureUI(plr)
@@ -251,7 +249,7 @@ local function ensureUI(plr)
 		BoxStroke = stroke,
 		DistLabel = dist,
 		Lines = lines,
-		Smooth = nil, -- set on first frame
+		Smooth = nil,
 	}
 	return ui[plr]
 end
@@ -266,12 +264,12 @@ end
 
 Players.PlayerRemoving:Connect(removeUI)
 
---// Update
+
 local function updatePlayer(plr)
 	local e = ensureUI(plr)
 	if not e then return end
 
-	-- reset
+
 	e.BoxFrame.Visible = false
 	e.DistLabel.Visible = false
 	for _, ln in ipairs(e.Lines) do ln.Visible = false end
@@ -284,14 +282,12 @@ local function updatePlayer(plr)
 	local char = plr.Character
 	if not char then return end
 
-	--====================================================
-	-- FIXED BOX: вместо char:GetBoundingBox() (раздувается при ударах)
-	--====================================================
+
 	local pad = ESP.BoxPadding
 	local x1, y1, x2, y2 = getStable2DBox(char, pad)
 	if not x1 then return end
 
-	-- Smooth box to be “static”
+	
 	if not e.Smooth then
 		e.Smooth = {x1=x1,y1=y1,x2=x2,y2=y2}
 	else
@@ -305,7 +301,7 @@ local function updatePlayer(plr)
 	local sx1, sy1, sx2, sy2 = e.Smooth.x1, e.Smooth.y1, e.Smooth.x2, e.Smooth.y2
 	local w, h = (sx2 - sx1), (sy2 - sy1)
 
-	-- BOX
+	
 	if ESP.Box.Enabled then
 		e.BoxStroke.Thickness = ESP.Box.Thickness
 		e.BoxStroke.Color = ESP.Box.Color
@@ -314,7 +310,7 @@ local function updatePlayer(plr)
 		e.BoxFrame.Visible = true
 	end
 
-	-- DISTANCE (meters)
+
 	if ESP.DistanceText.Enabled then
 		local meters = distStuds * ESP.StudToMeter
 		e.DistLabel.TextSize = ESP.DistanceText.Size
@@ -324,7 +320,7 @@ local function updatePlayer(plr)
 		e.DistLabel.Visible = true
 	end
 
-	-- SKELETON
+	
 	if ESP.Skeleton.Enabled then
 		local pairs = getRigPairs(char)
 		local idx = 1
@@ -358,7 +354,7 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
---// RAYFIELD UI
+
 local VisualTab = Window:CreateTab("Visuals", 4483362458)
 
 VisualTab:CreateToggle({
@@ -368,7 +364,7 @@ VisualTab:CreateToggle({
 	Callback = function(v) ESP.Enabled = v end,
 })
 
--- BOX controls
+
 VisualTab:CreateToggle({
 	Name = "Box (2D Outline)",
 	CurrentValue = true,
@@ -393,7 +389,7 @@ VisualTab:CreateColorPicker({
 	Callback = function(c) ESP.Box.Color = c end,
 })
 
--- SKELETON controls
+
 VisualTab:CreateToggle({
 	Name = "Skeleton",
 	CurrentValue = true,
@@ -418,7 +414,7 @@ VisualTab:CreateColorPicker({
 	Callback = function(c) ESP.Skeleton.Color = c end,
 })
 
--- DISTANCE controls
+
 VisualTab:CreateToggle({
 	Name = "Distance (meters)",
 	CurrentValue = true,
@@ -443,7 +439,7 @@ VisualTab:CreateColorPicker({
 	Callback = function(c) ESP.DistanceText.Color = c end,
 })
 
--- Global controls
+
 VisualTab:CreateSlider({
 	Name = "Max Distance",
 	Range = {100, 5000},
@@ -474,7 +470,7 @@ VisualTab:CreateSlider({
 	Callback = function(v) ESP.SmoothAlpha = v end,
 })
 
---// MOVEMENT (Rayfield) — Enable + Speed + Jump
+
 local MovementTab = Window:CreateTab("Movement", 4483362458)
 
 local Players = game:GetService("Players")
@@ -484,7 +480,7 @@ local LocalPlayer = Players.LocalPlayer
 local Move = {
 	Enabled = false,
 	Speed = 16,
-	Jump = 50, -- JumpPower (если UseJumpPower=true) иначе будет конверт в JumpHeight
+	Jump = 50,
 }
 
 local function getHumanoid()
@@ -503,23 +499,23 @@ local function applyMovement()
 	if hum.UseJumpPower then
 		hum.JumpPower = Move.Jump
 	else
-		-- если проект использует JumpHeight, делаем простую конверсию
+		
 		hum.JumpHeight = math.clamp(Move.Jump / 7, 2, 50)
 	end
 end
 
--- Применять после респавна
+
 LocalPlayer.CharacterAdded:Connect(function()
 	task.wait(0.2)
 	applyMovement()
 end)
 
--- Принудительно удерживать значения (если другие скрипты их сбрасывают)
+
 RunService.RenderStepped:Connect(function()
 	applyMovement()
 end)
 
--- UI
+
 MovementTab:CreateToggle({
 	Name = "Movement Enabled",
 	CurrentValue = false,
@@ -527,7 +523,7 @@ MovementTab:CreateToggle({
 	Callback = function(v)
 		Move.Enabled = v
 
-		-- если выключили — вернём дефолты (можешь поменять)
+		
 		if not v then
 			local hum = getHumanoid()
 			if hum then
@@ -579,7 +575,7 @@ MovementTab:CreateButton({
 	end,
 })
 
--- Необходимые переменные (должны быть определены в основном скрипте)
+
 local rs = game:GetService("ReplicatedStorage")
 local packets = require(rs.Modules.Packets)
 local plr = game.Players.LocalPlayer
@@ -590,11 +586,11 @@ local runs = game:GetService("RunService")
 local uis = game:GetService("UserInputService")
 local Players = game:GetService("Players")
 
--- Константы для анимации и оружия
+
 local SLASH_ID = 10761451679
 local GOD_ROCK_ID = 368
 
--- Функция для чтения ID из инстанса
+
 local function readIdFrom(inst)
     if not inst then return nil end
     if inst.GetAttribute then
@@ -612,7 +608,7 @@ local function readIdFrom(inst)
     return nil
 end
 
--- Функция для получения текущего оружия
+
 local function currentWeapon()
     local ch = plr.Character
     if not ch then return nil, nil end
@@ -641,7 +637,7 @@ local function currentWeapon()
     return nil, nil
 end
 
--- Функция для проверки God Rock
+
 local function isGodRockEquipped()
     local inst, id = currentWeapon()
     if id == GOD_ROCK_ID then return true, inst end
@@ -654,24 +650,24 @@ local function isGodRockEquipped()
     return false, inst
 end
 
--- Функция для атаки
+
 local function swingtool(targets)
     if packets.SwingTool and packets.SwingTool.send then
         packets.SwingTool.send(targets)
     end
 end
 
--- Создание вкладки Combat
-local CombatTab = Window:CreateTab("Combat", 4483362458) -- Иконка топора
 
--- Переменные для Kill Aura
+local CombatTab = Window:CreateTab("Combat", 4483362458)
+
+
 local killAuraEnabled = false
 local killAuraRange = 5
 local killAuraMaxTargets = 1
 local killAuraCooldown = 0.1
 local killAuraOnlyGod = true
 
--- Переменные для анимации
+
 local animator, slashTrack
 local animAllow = true
 local swingBusy = false
@@ -683,7 +679,7 @@ local animSpeed = 1.15
 local animBlendIn = 0.10
 local animMinGap = 0.10
 
--- Функции для работы с анимацией (определяем ДО использования в UI)
+
 local function refreshAnimator()
     local currentHum = plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
     if currentHum then
@@ -776,7 +772,7 @@ local function playSlashOnce()
     end)
 end
 
--- Kill Aura Toggle
+
 local KillAuraToggle = CombatTab:CreateToggle({
     Name = "Kill Aura",
     CurrentValue = false,
@@ -786,7 +782,7 @@ local KillAuraToggle = CombatTab:CreateToggle({
     end,
 })
 
--- Kill Aura Range Slider
+
 local KillAuraRange = CombatTab:CreateSlider({
     Name = "Range",
     Range = {1, 9},
@@ -799,7 +795,7 @@ local KillAuraRange = CombatTab:CreateSlider({
     end,
 })
 
--- Max Targets Dropdown
+
 local KillAuraMaxTargets = CombatTab:CreateDropdown({
     Name = "Max Targets",
     Options = {"1", "2", "3", "4", "5", "6"},
@@ -810,7 +806,7 @@ local KillAuraMaxTargets = CombatTab:CreateDropdown({
     end,
 })
 
--- Attack Cooldown Slider
+
 local KillAuraCooldown = CombatTab:CreateSlider({
     Name = "Attack Cooldown",
     Range = {0.01, 1.01},
@@ -823,7 +819,7 @@ local KillAuraCooldown = CombatTab:CreateSlider({
     end,
 })
 
--- Only God Rock Toggle
+
 local KillAuraOnlyGod = CombatTab:CreateToggle({
     Name = "Only with God Rock (ID 368)",
     CurrentValue = true,
@@ -833,23 +829,23 @@ local KillAuraOnlyGod = CombatTab:CreateToggle({
     end,
 })
 
--- ===================== Target Hub (HUD + Viewport) =====================
+
 local targetHubEnabled = false
 local targetHubViewportEnabled = true
-local currentTargetInfo = nil -- { player: Player, rootpart: BasePart, entityid: any, dist: number }
+local currentTargetInfo = nil 
 
 local targetHubGui, targetHubFrame, targetHubHeader, targetHubLabel, targetHubHpLabel, targetHubDistLabel
 local targetHubHpBarBG, targetHubHpBarFill
 local targetHubAvatar
 local targetHubViewport, targetHubWorld, targetHubCam
 local targetHubMinimized = false
-local thumbCache = {} -- [userId] = image
+local thumbCache = {}
 local targetHubClone = nil
 local lastTargetUserId = nil
 local viewportUpdateAcc = 0
 
 local function getUiParent()
-    -- exploit-friendly: gethui() если есть, иначе CoreGui
+   
     local ok, hui = pcall(function() return gethui() end)
     if ok and typeof(hui) == "Instance" then
         return hui
@@ -879,7 +875,7 @@ local function ensureTargetHub()
     frame.Name = "Container"
     frame.AnchorPoint = Vector2.new(0, 0)
     frame.Position = UDim2.fromOffset(12, 12)
-    frame.Size = UDim2.fromOffset(240, 64) -- по умолчанию компакт
+    frame.Size = UDim2.fromOffset(240, 64) 
     frame.BackgroundColor3 = Color3.fromRGB(12, 12, 14)
     frame.BackgroundTransparency = 0.05
     frame.BorderSizePixel = 0
@@ -966,7 +962,7 @@ local function ensureTargetHub()
         end
     end)
 
-    -- Avatar (как на скрине)
+    
     local avatar = Instance.new("ImageLabel")
     avatar.Name = "Avatar"
     avatar.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
@@ -1047,7 +1043,7 @@ local function ensureTargetHub()
     local vp = Instance.new("ViewportFrame")
     vp.Name = "Viewport"
     vp.Size = UDim2.new(1, -20, 0, 40)
-    vp.Position = UDim2.fromOffset(10, 108) -- будет включаться/выключаться
+    vp.Position = UDim2.fromOffset(10, 108)
     vp.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     vp.BackgroundTransparency = 0.15
     vp.BorderSizePixel = 0
@@ -1067,7 +1063,7 @@ local function ensureTargetHub()
     vp.CurrentCamera = cam
     targetHubCam = cam
 
-    -- Drag & drop (двигать окно) — как на скрине, за header
+  
     local dragging = false
     local dragStartPos, startFramePos
     header.InputBegan:Connect(function(input)
@@ -1135,7 +1131,7 @@ local function updateTargetHubLabel()
             if targetHubHpBarFill then
                 local pct = math.clamp(hp / math.max(mhp, 1), 0, 1)
                 targetHubHpBarFill.Size = UDim2.new(pct, 0, 1, 0)
-                -- зелёный -> красный
+                
                 targetHubHpBarFill.BackgroundColor3 = Color3.fromRGB(
                     math.floor(255 * (1 - pct)),
                     math.floor(220 * pct),
@@ -1148,7 +1144,7 @@ local function updateTargetHubLabel()
         end
     end
 
-    -- аватарка
+    
     if targetHubAvatar and currentTargetInfo.player.UserId then
         local uid = currentTargetInfo.player.UserId
         local img = thumbCache[uid]
@@ -1201,14 +1197,14 @@ local function updateViewportCamera()
     local hrp = targetHubClone:FindFirstChild("HumanoidRootPart") or targetHubClone:FindFirstChildWhichIsA("BasePart")
     if not hrp then return end
 
-    -- боковой вид как в примере
+   
     local look = hrp.CFrame.LookVector
     local right = hrp.CFrame.RightVector
     local camPos = hrp.Position + (look * 6) + Vector3.new(0, 2, 0) + (right * 2)
     targetHubCam.CFrame = CFrame.new(camPos, hrp.Position)
 end
 
--- Обновление хаба (не каждый кадр, чтобы не лагало)
+
 runs.RenderStepped:Connect(function(dt)
     if not targetHubEnabled then
         if targetHubGui and targetHubGui.Parent then
@@ -1230,7 +1226,7 @@ runs.RenderStepped:Connect(function(dt)
     if targetHubViewport then targetHubViewport.Visible = true end
 
     viewportUpdateAcc += (dt or 0)
-    if viewportUpdateAcc < 0.08 then return end -- ~12 FPS
+    if viewportUpdateAcc < 0.08 then return end 
     viewportUpdateAcc = 0
 
     refreshViewportClone()
@@ -1261,7 +1257,7 @@ CombatTab:CreateToggle({
     end,
 })
 
--- Swing Animation Toggle
+
 local SwingAnimationToggle = CombatTab:CreateToggle({
     Name = "Swing Animation",
     CurrentValue = true,
@@ -1275,7 +1271,7 @@ local SwingAnimationToggle = CombatTab:CreateToggle({
     end,
 })
 
--- Animation Speed Slider
+
 local AnimationSpeed = CombatTab:CreateSlider({
     Name = "Anim Speed",
     Range = {0.4, 2.2},
@@ -1293,7 +1289,7 @@ local AnimationSpeed = CombatTab:CreateSlider({
     end,
 })
 
--- Blend-in Slider
+
 local AnimationBlendIn = CombatTab:CreateSlider({
     Name = "Blend-in",
     Range = {0.00, 0.25},
@@ -1306,7 +1302,7 @@ local AnimationBlendIn = CombatTab:CreateSlider({
     end,
 })
 
--- Min Gap Between Swings Slider
+
 local AnimationMinGap = CombatTab:CreateSlider({
     Name = "Min gap between swings",
     Range = {0.10, 1.00},
@@ -1319,7 +1315,7 @@ local AnimationMinGap = CombatTab:CreateSlider({
     end,
 })
 
--- Обработка респавна персонажа
+
 plr.CharacterAdded:Connect(function()
     task.defer(function()
         animAllow = false
@@ -1335,7 +1331,7 @@ plr.CharacterAdded:Connect(function()
     end)
 end)
 
--- Kill Aura Logic
+
 task.spawn(function()
     while true do
         if not killAuraEnabled then
@@ -1343,7 +1339,7 @@ task.spawn(function()
             continue
         end
 
-        -- Проверка God Rock
+  
         if killAuraOnlyGod and not isGodRockEquipped() then
             stopSlashSafe(0)
             nextAllowedAt = tick()
@@ -1351,7 +1347,7 @@ task.spawn(function()
             continue
         end
 
-        -- Обновляем root при респавне
+      
         if not root or not root.Parent then
             char = plr.Character or plr.CharacterAdded:Wait()
             root = char:WaitForChild("HumanoidRootPart")
@@ -1362,7 +1358,7 @@ task.spawn(function()
 
         for _, player in pairs(game.Players:GetPlayers()) do
             if player ~= plr then
-                -- Не бить друзей Roblox
+             
                 local isFriend = false
                 pcall(function()
                     if player.UserId then
@@ -1399,11 +1395,11 @@ task.spawn(function()
                 table.insert(selectedTargets, targets[i].eid)
             end
 
-            -- Target Hub: текущая цель = ближайшая
+           
             if targetHubEnabled and targets[1] then
                 local hp, maxhp
                 pcall(function()
-                    -- пытаемся взять Humanoid из workspace.Players/<Name>
+                 
                     local folder = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild(targets[1].player.Name)
                     local h = folder and folder:FindFirstChildOfClass("Humanoid")
                     if not h and folder then
@@ -1429,7 +1425,7 @@ task.spawn(function()
                 currentTargetInfo = nil
             end
 
-            -- Проигрываем анимацию перед атакой
+      
             playSlashOnce()
             swingtool(selectedTargets)
         end
@@ -1438,15 +1434,15 @@ task.spawn(function()
     end
 end)
 
--- Инициализация аниматора при загрузке
+
 task.defer(function()
     refreshAnimator()
 end)
 
 
--- ===================== AUTO PICKUP & AUTO DROP (Rayfield UI) =====================
 
--- Необходимые переменные (должны быть определены в основном скрипте)
+
+
 local rs = game:GetService("ReplicatedStorage")
 local packets = require(rs.Modules.Packets)
 local plr = game.Players.LocalPlayer
@@ -1454,14 +1450,14 @@ local char = plr.Character or plr.CharacterAdded:Wait()
 local root = char:WaitForChild("HumanoidRootPart")
 local runs = game:GetService("RunService")
 
--- Функция для подбора предметов (точная копия из оригинального скрипта)
+
 local function pickup(entityid)
     if packets.Pickup and packets.Pickup.send then
         packets.Pickup.send(entityid)
     end
 end
 
--- Функция для выбрасывания предмета (точная копия из оригинального скрипта)
+
 local function drop(itemname)
     local inventory = game:GetService("Players").LocalPlayer.PlayerGui.MainGui.RightPanel.Inventory:FindFirstChild("List")
     if not inventory then return end
@@ -1475,16 +1471,16 @@ local function drop(itemname)
     end
 end
 
--- Создание вкладки Pickup
-local PickupTab = Window:CreateTab("Pickup", 4483362458) -- Иконка рюкзака
 
--- Переменные для Auto Pickup
+local PickupTab = Window:CreateTab("Pickup", 4483362458)
+
+
 local autoPickupEnabled = false
 local chestPickupEnabled = false
 local pickupRange = 20
 local selecteditems = {}
 
--- Переменные для Auto Drop
+
 local autoDropEnabled = false
 local autoDropCustomEnabled = false
 local dropItem = "Bloodfruit"
@@ -1492,7 +1488,7 @@ local customDropItem = "Bloodfruit"
 local dropDebounce = 0
 local dropCooldown = 0
 
--- Auto Pickup Toggle
+
 local AutoPickupToggle = PickupTab:CreateToggle({
     Name = "Auto Pickup",
     CurrentValue = false,
@@ -1502,7 +1498,7 @@ local AutoPickupToggle = PickupTab:CreateToggle({
     end,
 })
 
--- Auto Pickup From Chests Toggle
+
 local ChestPickupToggle = PickupTab:CreateToggle({
     Name = "Auto Pickup From Chests",
     CurrentValue = false,
@@ -1512,7 +1508,7 @@ local ChestPickupToggle = PickupTab:CreateToggle({
     end,
 })
 
--- Pickup Range Slider
+
 local PickupRangeSlider = PickupTab:CreateSlider({
     Name = "Pickup Range",
     Range = {1, 35},
@@ -1525,17 +1521,17 @@ local PickupRangeSlider = PickupTab:CreateSlider({
     end,
 })
 
--- Items Dropdown (Multi-select) - точная копия логики из оригинального скрипта
+
 local ItemsDropdown = PickupTab:CreateDropdown({
     Name = "Items",
     Options = {"Berry", "Bloodfruit", "Bluefruit", "Lemon", "Strawberry", "Gold", "Raw Gold", "Crystal Chunk", "Coin", "Coins", "Coin2", "Coin Stack", "Essence", "Emerald", "Raw Emerald", "Pink Diamond", "Raw Pink Diamond", "Void Shard", "Jelly", "Magnetite", "Raw Magnetite", "Adurite", "Raw Adurite", "Ice Cube", "Stone", "Iron", "Raw Iron", "Steel", "Hide", "Leaves", "Log", "Wood", "Pie"},
     CurrentOption = {"Leaves", "Log"},
     Flag = "ItemsDropdown",
     Callback = function(Value)
-        -- Точная копия логики из оригинального скрипта
+   
         selecteditems = {}
         if type(Value) == "table" then
-            -- Проверяем, это таблица с булевыми значениями (как в оригинале) или массив строк
+   
             local isArray = false
             for k, v in pairs(Value) do
                 if type(k) == "number" then
@@ -1545,12 +1541,12 @@ local ItemsDropdown = PickupTab:CreateDropdown({
             end
             
             if isArray then
-                -- Это массив строк
+           
                 for _, item in ipairs(Value) do
                     table.insert(selecteditems, item)
                 end
             else
-                -- Это таблица с булевыми значениями (как в оригинале)
+      
                 for item, State in pairs(Value) do
                     if State then
                         table.insert(selecteditems, item)
@@ -1558,7 +1554,7 @@ local ItemsDropdown = PickupTab:CreateDropdown({
                 end
             end
         else
-            -- Если это строка, добавляем её
+  
             if Value then
                 table.insert(selecteditems, Value)
             end
@@ -1566,10 +1562,10 @@ local ItemsDropdown = PickupTab:CreateDropdown({
     end,
 })
 
--- Инициализация выбранных предметов по умолчанию (как в оригинале: Leaves и Log)
+
 selecteditems = {"Leaves", "Log"}
 
--- Auto Drop Toggle
+
 local AutoDropToggle = PickupTab:CreateToggle({
     Name = "Auto Drop",
     CurrentValue = false,
@@ -1579,7 +1575,7 @@ local AutoDropToggle = PickupTab:CreateToggle({
     end,
 })
 
--- Drop Item Dropdown
+
 local DropItemDropdown = PickupTab:CreateDropdown({
     Name = "Select Item to Drop",
     Options = {"Bloodfruit", "Jelly", "Bluefruit", "Log", "Leaves", "Wood"},
@@ -1590,7 +1586,7 @@ local DropItemDropdown = PickupTab:CreateDropdown({
     end,
 })
 
--- Auto Drop Custom Toggle
+
 local AutoDropCustomToggle = PickupTab:CreateToggle({
     Name = "Auto Drop Custom",
     CurrentValue = false,
@@ -1600,7 +1596,7 @@ local AutoDropCustomToggle = PickupTab:CreateToggle({
     end,
 })
 
--- Custom Drop Item Input
+
 local CustomDropItemInput = PickupTab:CreateInput({
     Name = "Custom Item",
     PlaceholderText = "Bloodfruit",
@@ -1610,7 +1606,7 @@ local CustomDropItemInput = PickupTab:CreateInput({
     end,
 })
 
--- Обработка респавна персонажа
+
 local function onplradded(newChar)
     char = newChar
     root = char:WaitForChild("HumanoidRootPart")
@@ -1618,10 +1614,10 @@ end
 
 plr.CharacterAdded:Connect(onplradded)
 
--- Auto Pickup Logic (точная копия логики из оригинального скрипта)
+
 task.spawn(function()
     while true do
-        -- Обновляем root при респавне
+  
         if not root or not root.Parent then
             char = plr.Character or plr.CharacterAdded:Wait()
             root = char:WaitForChild("HumanoidRootPart")
@@ -1669,7 +1665,7 @@ task.spawn(function()
     end
 end)
 
--- Auto Drop Logic (точная копия логики из оригинального скрипта)
+
 runs.Heartbeat:Connect(function()
     if autoDropEnabled then
         if tick() - dropDebounce >= dropCooldown then
@@ -1690,11 +1686,11 @@ runs.Heartbeat:Connect(function()
     end
 end)
 
--- ===================== AUTO HEAL (Rayfield UI) - AGGRESSIVE MODE =====================
+
 
 print("[AutoHeal] Loading script...")
 
--- Необходимые переменные (должны быть определены в основном скрипте)
+
 local rs = game:GetService("ReplicatedStorage")
 local plr = game.Players.LocalPlayer
 local char = plr.Character or plr.CharacterAdded:Wait()
@@ -1702,13 +1698,13 @@ local root = char:WaitForChild("HumanoidRootPart")
 local hum = char:WaitForChild("Humanoid")
 local runs = game:GetService("RunService")
 
--- ========= [ Packets (без ошибок, если модуля нет) ] =========
+
 local packets do
     local ok, mod = pcall(function() return require(rs:WaitForChild("Modules"):WaitForChild("Packets")) end)
     packets = ok and mod or {}
 end
 
--- ========= [ Общие инвентарь/еды (из оригинального Fluent скрипта) ] =========
+
 function findInventoryList()
     local pg = plr:FindFirstChild("PlayerGui"); if not pg then return nil end
     local mg = pg:FindFirstChild("MainGui");    if not mg then return nil end
@@ -1754,7 +1750,7 @@ function consumeById(id)
     return false
 end
 
--- Обновление char и hum при респавне
+
 plr.CharacterAdded:Connect(function(newChar)
     char = newChar
     root = char:WaitForChild("HumanoidRootPart")
@@ -1764,7 +1760,7 @@ end)
 -- Создание вкладки Heal
 local HealTab = Window:CreateTab("Heal", 4483362458) -- Иконка сердца
 
--- Локальные переменные для хранения значений UI
+
 local heal_toggle_value = false
 local heal_item_value = "Bloodfruit"
 local heal_min_value = 70
@@ -1778,7 +1774,7 @@ local heal_burst_value = 3
 local heal_yield_n_value = 6
 local heal_debug_value = false
 
--- UI элементы (адаптировано для Rayfield) - сохраняем в _G для доступа из config_tab
+
 local heal_toggle = HealTab:CreateToggle({
     Name = "Auto Heal",
     CurrentValue = false,
@@ -1842,7 +1838,7 @@ local heal_max = HealTab:CreateSlider({
     Callback = function(Value)
         _G.heal_max_value = Value
         heal_max_value = Value
-        -- Проверяем диапазон без вызова Set()
+
         if heal_min_value >= heal_max_value then
             if heal_max_value < 100 then
                 _G.heal_min_value = math.max(1, heal_max_value - 1)
