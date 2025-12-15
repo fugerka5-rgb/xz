@@ -579,6 +579,7 @@ MovementTab:CreateButton({
 	end,
 })
 
+
 -- Необходимые переменные (должны быть определены в основном скрипте)
 local rs = game:GetService("ReplicatedStorage")
 local packets = require(rs.Modules.Packets)
@@ -588,6 +589,7 @@ local root = char:WaitForChild("HumanoidRootPart")
 local hum = char:WaitForChild("Humanoid")
 local runs = game:GetService("RunService")
 local uis = game:GetService("UserInputService")
+local Players = game:GetService("Players")
 
 -- Константы для анимации и оружия
 local SLASH_ID = 10761451679
@@ -837,7 +839,12 @@ local targetHubEnabled = false
 local targetHubViewportEnabled = true
 local currentTargetInfo = nil -- { player: Player, rootpart: BasePart, entityid: any, dist: number }
 
-local targetHubGui, targetHubFrame, targetHubLabel, targetHubHpLabel, targetHubViewport, targetHubWorld, targetHubCam
+local targetHubGui, targetHubFrame, targetHubHeader, targetHubLabel, targetHubHpLabel, targetHubDistLabel
+local targetHubHpBarBG, targetHubHpBarFill
+local targetHubAvatar
+local targetHubViewport, targetHubWorld, targetHubCam
+local targetHubMinimized = false
+local thumbCache = {} -- [userId] = image
 local targetHubClone = nil
 local lastTargetUserId = nil
 local viewportUpdateAcc = 0
@@ -872,25 +879,117 @@ local function ensureTargetHub()
     local frame = Instance.new("Frame")
     frame.Name = "Container"
     frame.AnchorPoint = Vector2.new(0, 0)
-    frame.Position = UDim2.fromOffset(12, 260)
-    frame.Size = UDim2.fromOffset(220, 110)
-    frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-    frame.BackgroundTransparency = 0.25
+    frame.Position = UDim2.fromOffset(12, 12)
+    frame.Size = UDim2.fromOffset(240, 64) -- по умолчанию компакт
+    frame.BackgroundColor3 = Color3.fromRGB(12, 12, 14)
+    frame.BackgroundTransparency = 0.05
     frame.BorderSizePixel = 0
     frame.Parent = gui
     targetHubFrame = frame
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 1
+    stroke.Transparency = 0.25
+    stroke.Color = Color3.fromRGB(255, 255, 255)
+    stroke.Parent = frame
 
     local uiCorner = Instance.new("UICorner")
     uiCorner.CornerRadius = UDim.new(0, 10)
     uiCorner.Parent = frame
 
+    local shadow = Instance.new("ImageLabel")
+    shadow.Name = "Shadow"
+    shadow.BackgroundTransparency = 1
+    shadow.Image = "rbxassetid://1316045217"
+    shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+    shadow.ImageTransparency = 0.65
+    shadow.ScaleType = Enum.ScaleType.Slice
+    shadow.SliceCenter = Rect.new(10, 10, 118, 118)
+    shadow.Size = UDim2.new(1, 24, 1, 24)
+    shadow.Position = UDim2.fromOffset(-12, -12)
+    shadow.ZIndex = -1
+    shadow.Parent = frame
+
+    local header = Instance.new("Frame")
+    header.Name = "Header"
+    header.Size = UDim2.new(1, 0, 0, 30)
+    header.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+    header.BackgroundTransparency = 0.0
+    header.BorderSizePixel = 0
+    header.Parent = frame
+    targetHubHeader = header
+
+    local headerCorner = Instance.new("UICorner")
+    headerCorner.CornerRadius = UDim.new(0, 10)
+    headerCorner.Parent = header
+
+    local headerCover = Instance.new("Frame")
+    headerCover.Name = "HeaderCover"
+    headerCover.Size = UDim2.new(1, 0, 0, 10)
+    headerCover.Position = UDim2.new(0, 0, 1, -10)
+    headerCover.BackgroundColor3 = header.BackgroundColor3
+    headerCover.BorderSizePixel = 0
+    headerCover.Parent = header
+
+    local title = Instance.new("TextLabel")
+    title.Name = "Title"
+    title.BackgroundTransparency = 1
+    title.Position = UDim2.fromOffset(10, 0)
+    title.Size = UDim2.new(1, -80, 1, 0)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 14
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.Text = "Target Hub"
+    title.Parent = header
+
+    local minBtn = Instance.new("TextButton")
+    minBtn.Name = "Minimize"
+    minBtn.Size = UDim2.fromOffset(26, 20)
+    minBtn.Position = UDim2.new(1, -32, 0, 5)
+    minBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
+    minBtn.BorderSizePixel = 0
+    minBtn.Font = Enum.Font.GothamSemibold
+    minBtn.TextSize = 14
+    minBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
+    minBtn.Text = "–"
+    minBtn.Parent = header
+    local minCorner = Instance.new("UICorner")
+    minCorner.CornerRadius = UDim.new(0, 6)
+    minCorner.Parent = minBtn
+    minBtn.MouseButton1Click:Connect(function()
+        targetHubMinimized = not targetHubMinimized
+        if targetHubViewport then
+            targetHubViewport.Visible = (not targetHubMinimized) and targetHubViewportEnabled
+        end
+        if targetHubHpBarBG then
+            targetHubHpBarBG.Visible = not targetHubMinimized
+        end
+    end)
+
+    -- Avatar (как на скрине)
+    local avatar = Instance.new("ImageLabel")
+    avatar.Name = "Avatar"
+    avatar.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
+    avatar.BackgroundTransparency = 0
+    avatar.BorderSizePixel = 0
+    avatar.Size = UDim2.fromOffset(34, 34)
+    avatar.Position = UDim2.fromOffset(10, 36)
+    avatar.Image = ""
+    avatar.ScaleType = Enum.ScaleType.Crop
+    avatar.Parent = frame
+    targetHubAvatar = avatar
+    local aCorner = Instance.new("UICorner")
+    aCorner.CornerRadius = UDim.new(0, 8)
+    aCorner.Parent = avatar
+
     local label = Instance.new("TextLabel")
     label.Name = "Label"
-    label.Size = UDim2.new(1, -10, 0, 22)
-    label.Position = UDim2.fromOffset(5, 5)
+    label.Size = UDim2.new(1, -58, 0, 18)
+    label.Position = UDim2.fromOffset(50, 34)
     label.BackgroundTransparency = 1
     label.Font = Enum.Font.GothamSemibold
-    label.TextSize = 14
+    label.TextSize = 13
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.TextColor3 = Color3.fromRGB(255, 255, 255)
     label.Text = "Target: none"
@@ -899,21 +998,57 @@ local function ensureTargetHub()
 
     local hpLabel = Instance.new("TextLabel")
     hpLabel.Name = "HPLabel"
-    hpLabel.Size = UDim2.new(1, -10, 0, 18)
-    hpLabel.Position = UDim2.fromOffset(5, 26)
+    hpLabel.Size = UDim2.new(1, -58, 0, 16)
+    hpLabel.Position = UDim2.fromOffset(50, 52)
     hpLabel.BackgroundTransparency = 1
     hpLabel.Font = Enum.Font.Gotham
-    hpLabel.TextSize = 13
+    hpLabel.TextSize = 12
     hpLabel.TextXAlignment = Enum.TextXAlignment.Left
     hpLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
     hpLabel.Text = "HP: -"
     hpLabel.Parent = frame
     targetHubHpLabel = hpLabel
 
+    local distLabel = Instance.new("TextLabel")
+    distLabel.Name = "DistLabel"
+    distLabel.Size = UDim2.new(1, -58, 0, 16)
+    distLabel.Position = UDim2.fromOffset(50, 68)
+    distLabel.BackgroundTransparency = 1
+    distLabel.Font = Enum.Font.Gotham
+    distLabel.TextSize = 12
+    distLabel.TextXAlignment = Enum.TextXAlignment.Left
+    distLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+    distLabel.Text = "Dist: -"
+    distLabel.Parent = frame
+    targetHubDistLabel = distLabel
+
+    local hpBarBG = Instance.new("Frame")
+    hpBarBG.Name = "HPBarBG"
+    hpBarBG.Size = UDim2.new(1, -58, 0, 8)
+    hpBarBG.Position = UDim2.fromOffset(50, 86)
+    hpBarBG.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    hpBarBG.BorderSizePixel = 0
+    hpBarBG.Parent = frame
+    targetHubHpBarBG = hpBarBG
+    local hpBgCorner = Instance.new("UICorner")
+    hpBgCorner.CornerRadius = UDim.new(0, 6)
+    hpBgCorner.Parent = hpBarBG
+
+    local hpFill = Instance.new("Frame")
+    hpFill.Name = "HPBarFill"
+    hpFill.Size = UDim2.new(0, 0, 1, 0)
+    hpFill.BackgroundColor3 = Color3.fromRGB(0, 220, 120)
+    hpFill.BorderSizePixel = 0
+    hpFill.Parent = hpBarBG
+    targetHubHpBarFill = hpFill
+    local hpFillCorner = Instance.new("UICorner")
+    hpFillCorner.CornerRadius = UDim.new(0, 6)
+    hpFillCorner.Parent = hpFill
+
     local vp = Instance.new("ViewportFrame")
     vp.Name = "Viewport"
-    vp.Size = UDim2.new(1, -10, 1, -54)
-    vp.Position = UDim2.fromOffset(5, 48)
+    vp.Size = UDim2.new(1, -20, 0, 40)
+    vp.Position = UDim2.fromOffset(10, 108) -- будет включаться/выключаться
     vp.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     vp.BackgroundTransparency = 0.15
     vp.BorderSizePixel = 0
@@ -933,17 +1068,17 @@ local function ensureTargetHub()
     vp.CurrentCamera = cam
     targetHubCam = cam
 
-    -- Drag & drop (двигать окно)
+    -- Drag & drop (двигать окно) — как на скрине, за header
     local dragging = false
     local dragStartPos, startFramePos
-    frame.InputBegan:Connect(function(input)
+    header.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStartPos = input.Position
             startFramePos = frame.Position
         end
     end)
-    frame.InputEnded:Connect(function(input)
+    header.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = false
         end
@@ -956,6 +1091,18 @@ local function ensureTargetHub()
     end)
 end
 
+local function applyTargetHubLayout()
+    if not targetHubFrame then return end
+    local showViewport = targetHubViewportEnabled and (not targetHubMinimized)
+    if showViewport then
+        targetHubFrame.Size = UDim2.fromOffset(240, 140)
+        if targetHubViewport then targetHubViewport.Position = UDim2.fromOffset(10, 98) targetHubViewport.Size = UDim2.new(1, -20, 1, -108) end
+    else
+        targetHubFrame.Size = UDim2.fromOffset(240, 64)
+        if targetHubViewport then targetHubViewport.Visible = false end
+    end
+end
+
 local function setTargetHubVisible(v)
     if not targetHubGui or not targetHubGui.Parent then return end
     targetHubGui.Enabled = v and true or false
@@ -966,18 +1113,51 @@ local function updateTargetHubLabel()
     if not currentTargetInfo or not currentTargetInfo.player then
         targetHubLabel.Text = "Target: none"
         if targetHubHpLabel then targetHubHpLabel.Text = "HP: -" end
+        if targetHubDistLabel then targetHubDistLabel.Text = "Dist: -" end
+        if targetHubHpBarFill then targetHubHpBarFill.Size = UDim2.new(0, 0, 1, 0) end
+        if targetHubAvatar then targetHubAvatar.Image = "" end
         return
     end
     local name = currentTargetInfo.player.Name or "?"
     local d = tonumber(currentTargetInfo.dist) or 0
-    targetHubLabel.Text = ("Target: %s (%.1f)"):format(name, d)
+    targetHubLabel.Text = ("Target: %s"):format(name)
+    if targetHubDistLabel then
+        targetHubDistLabel.Text = ("Dist: %.1f"):format(d)
+    end
     if targetHubHpLabel then
         local hp = tonumber(currentTargetInfo.hp)
         local mhp = tonumber(currentTargetInfo.maxhp)
         if hp and mhp then
             targetHubHpLabel.Text = ("HP: %.0f / %.0f"):format(hp, mhp)
+            if targetHubHpBarFill then
+                local pct = math.clamp(hp / math.max(mhp, 1), 0, 1)
+                targetHubHpBarFill.Size = UDim2.new(pct, 0, 1, 0)
+                -- зелёный -> красный
+                targetHubHpBarFill.BackgroundColor3 = Color3.fromRGB(
+                    math.floor(255 * (1 - pct)),
+                    math.floor(220 * pct),
+                    80
+                )
+            end
         else
             targetHubHpLabel.Text = "HP: -"
+            if targetHubHpBarFill then targetHubHpBarFill.Size = UDim2.new(0, 0, 1, 0) end
+        end
+    end
+
+    -- аватарка
+    if targetHubAvatar and currentTargetInfo.player.UserId then
+        local uid = currentTargetInfo.player.UserId
+        local img = thumbCache[uid]
+        if not img then
+            pcall(function()
+                local t, _ = Players:GetUserThumbnailAsync(uid, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
+                img = t
+                thumbCache[uid] = img
+            end)
+        end
+        if img then
+            targetHubAvatar.Image = img
         end
     end
 end
@@ -1036,6 +1216,7 @@ runs.RenderStepped:Connect(function(dt)
 
     ensureTargetHub()
     setTargetHubVisible(true)
+    applyTargetHubLayout()
     updateTargetHubLabel()
 
     if not targetHubViewportEnabled then
@@ -1258,7 +1439,6 @@ end)
 task.defer(function()
     refreshAnimator()
 end)
-
 
 
 -- ===================== AUTO PICKUP & AUTO DROP (Rayfield UI) =====================
